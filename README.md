@@ -6,6 +6,19 @@ A 19-inch 2U rack-mount fan panel for network/server cabinets: three 80mm PWM fa
 
 ![Assembled](cad/asm_assembled.png)
 
+### Photos
+
+<p align="center">
+  <img src="photos/rack_installed.jpg" alt="Installed at the top of a network cabinet" height="360">
+  <img src="photos/front.jpg" alt="Front panel: 3 fans, OLED and knob" height="360">
+</p>
+<p align="center"><i>Left: installed at the top of a home network cabinet. Right: front panel — OLED shows temperature, mode, master fan RPM and duty.</i></p>
+
+<p align="center">
+  <img src="photos/rear_wiring.jpg" alt="Rear view: flipped Arduino with dupont wires plugged straight into the headers" width="640">
+</p>
+<p align="center"><i>Rear: the Arduino is mounted flipped so every module plugs straight into its headers with dupont wires (no breadboard, no soldering).</i></p>
+
 ---
 
 ## 1. Bill of Materials
@@ -235,6 +248,7 @@ MQTT topics are `rackfan/<device ID>/<item>/state` (reports) and `.../<item>/set
 ├── README.md                  This document
 ├── firmware/smartfan/         Firmware
 ├── homeassistant/             Manual HA YAML (fallback)
+├── photos/                    Photos of the finished build
 ├── cad/                       Parametric CAD + STEP; stl/ holds the printable parts
 └── tools/                     Scripts and images for the schematic / wiring diagram / OLED preview
 ```

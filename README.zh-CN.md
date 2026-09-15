@@ -6,6 +6,19 @@
 
 ![整机](cad/asm_assembled_zh.png)
 
+### 实拍照片
+
+<p align="center">
+  <img src="photos/rack_installed.jpg" alt="装在家用网络机柜顶部" height="360">
+  <img src="photos/front.jpg" alt="前面板:3 个风扇 + OLED + 旋钮" height="360">
+</p>
+<p align="center"><i>左:装在家用网络机柜顶部。右:前面板,OLED 显示温度、模式、主风扇转速和占空比。</i></p>
+
+<p align="center">
+  <img src="photos/rear_wiring.jpg" alt="背面:Arduino 翻装,杜邦线直插排针" width="640">
+</p>
+<p align="center"><i>背面:Arduino 翻装,各模块用杜邦线直插排针(无面包板、免焊)。</i></p>
+
 ---
 
 ## 一、硬件清单
@@ -236,6 +249,7 @@ MQTT 主题格式 `rackfan/<设备ID>/<项>/state`(上报)和 `.../<项>/set`(�
 ├── README.zh-CN.md            本文档(中文)
 ├── firmware/smartfan/         固件
 ├── homeassistant/             HA 手动 YAML(备用)
+├── photos/                    实拍照片
 ├── cad/                       参数化 CAD + STEP,stl/ 为打印件
 └── tools/                     原理图 / 接线图 / OLED 预览的生成脚本和图片
 ```
