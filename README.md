@@ -25,19 +25,21 @@ A 19-inch 2U rack-mount fan panel for network/server cabinets: three 80mm PWM fa
 
 ### 1.1 Electronics
 
-| Part | Spec | Qty | Unit price | Link (Taobao) |
+| Part | Spec | Qty | Approx. price (US) | Link (US) |
 |---|---|---|---|---|
-| Arduino UNO R4 WiFi | Must be the **WiFi** version | 1 | ¥78 | [link](https://item.taobao.com/item.htm?id=728466241901&skuId=5362929322720) |
-| Arctic P8 PWM PST fan | 8025, 4-pin PWM, 0.14A, stops at 0% PWM | 3 | ¥53.1 | [link](https://item.taobao.com/item.htm?id=746236890766) |
-| 4-pin male-to-female adapter cable | 2.54mm, 300mm (master fan → Arduino headers) | 1 | ¥0.95 | [link](https://item.taobao.com/item.htm?id=595308472628) |
-| 12V DC power adapter | 12V 2A, 5.5×2.1mm, center positive | 1 | ¥4.6 | [link](https://item.taobao.com/item.htm?id=801362523945&skuId=5629734151517) |
-| DS18B20 temperature module | Onboard 4.7k pull-up | 1 | ¥3.27 | [link](https://item.taobao.com/item.htm?id=868763780725) |
-| 0.96" OLED | SSD1306, 128×64, 4-pin I2C | 1 | ¥12.78 | [link](https://item.taobao.com/item.htm?id=902239028745) |
-| KY-040 rotary encoder | Threaded bushing + push button | 1 | ¥0.5 | [link](https://item.taobao.com/item.htm?id=828378519209) |
-| **1-to-3 dupont splitter cable** | One for 5V, one for GND | 2 | ¥2.99 | [link](https://item.taobao.com/item.htm?id=943150762066&skuId=5844444132189) |
-| Dupont wires | 20cm, for signals | several | ¥1.19 | [link](https://item.taobao.com/item.htm?id=932664239195) |
+| Arduino UNO R4 WiFi | Must be the **WiFi** version (ABX00087) | 1 | $27.50 | [Amazon](https://www.amazon.com/Arduino-UNO-WiFi-ABX00087-Bluetooth/dp/B0C8V88Z9D) |
+| Arctic P8 PWM PST fan | 8025, 4-pin PWM, 0.14A, stops at 0% PWM (**not** the "CO" variant) | 3 | ~$9 each | [Amazon](https://www.amazon.com/ARCTIC-P8-PWM-PST-Pressure-optimised/dp/B07WWKF96F) |
+| 4-pin male-to-female fan extension cable | 2.54mm, ~300mm / 12" (master fan → Arduino headers) | 1 | ~$8 (2-pack) | [Amazon](https://www.amazon.com/Cable-Matters-2-Pack-4-Pin-Extension/dp/B07FK5H679) |
+| 12V DC power adapter | 12V 2A, 5.5×2.1mm, center positive | 1 | ~$9 | [Amazon](https://www.amazon.com/Power-Supply-5-5x2-1mm-Plug-White/dp/B09J267K2P) |
+| DS18B20 temperature module | Onboard 4.7k pull-up | 1 | ~$7 (3-pack) | [Amazon](https://www.amazon.com/DS18B20-Temperature-Measurement-Arduino-Starter/dp/B0786CZCYJ) |
+| 0.96" OLED | SSD1306, 128×64, 4-pin I2C | 1 | ~$7 | [Amazon](https://www.amazon.com/HiLetgo-Adafruit-Beaglebones-Raspberry-Optional/dp/B076DYCWC8) |
+| KY-040 rotary encoder | Threaded bushing + nut + push button | 1 | ~$9 (8-pack) | [Amazon](https://www.amazon.com/WGCD-KY-040-Degree-Encoder-Arduino/dp/B07B68H6R8) |
+| **1-to-3 dupont splitter cable** | 2.54mm, one male end → three female ends; one for 5V, one for GND | 2 | ~$7 (pack) | [Amazon search](https://www.amazon.com/s?k=dupont+jumper+wire+splitter+1+male+to+3+female) |
+| Dupont wires | 20cm, M-F / M-M / F-F assortment, for signals | several | ~$7 (120 pcs) | [Amazon](https://www.amazon.com/Elegoo-EL-CP-004-Multicolored-Breadboard-arduino/dp/B01EV70C78) |
 
-> Total ≈ ¥270 (~US$38). Three fans at full speed draw about 0.4A @ 12V and the whole unit ~0.7A, so a 12V 2A adapter is plenty. Outside China, any part matching the spec column works.
+> Total ≈ US$110 (Amazon prices vary; most small parts only come in multi-packs). Three fans at full speed draw about 0.4A @ 12V and the whole unit ~0.7A, so a 12V 2A adapter is plenty. The links are examples — any part matching the spec column works. Buying in China? [README.zh-CN.md](README.zh-CN.md) lists Taobao links.
+>
+> ⚠ The printed mounts were sized on the original (Taobao) modules: DS18B20 PCB 28.2×13mm, OLED M2 holes 21×21.5mm apart, encoder bushing Ø6.8mm. Module footprints vary between sellers — check yours, and adjust `SENS_*`/`MOD_*`, `OLED_HOLE_*` and `ENC_HOLE_D` in `cad/rack_fan_2u.py` if needed (see `cad/README.md`).
 
 ### 1.2 Printed parts (PETG, Bambu P1S)
 
