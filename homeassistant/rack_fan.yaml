@@ -1,0 +1,81 @@
+# 2U smart rack fan — manual Home Assistant MQTT config (fallback if discovery fails)
+# ------------------------------------------------------------------
+# Normally the firmware does MQTT auto-discovery and this file is not needed.
+# Use it only if you disabled discovery or prefer hand-written config.
+#
+# Usage:
+#   1) Put it at  <config>/packages/rack_fan.yaml
+#   2) Enable packages at the top of configuration.yaml:
+#        homeassistant:
+#          packages: !include_dir_named packages
+#   3) Restart HA.
+#
+# Note: every rackfan/rackfan01 below must match the device ID entered in the
+# provisioning portal (default rackfan01).
+
+mqtt:
+  climate:
+    - name: "Rack Fan"
+      unique_id: rackfan01_clim
+      modes: ["off", "cool"]
+      mode_state_topic: "rackfan/rackfan01/hvac/mode/state"
+      mode_command_topic: "rackfan/rackfan01/hvac/mode/set"
+      temperature_state_topic: "rackfan/rackfan01/set/state"
+      temperature_command_topic: "rackfan/rackfan01/set/set"
+      current_temperature_topic: "rackfan/rackfan01/temp/state"
+      min_temp: 25
+      max_temp: 55
+      temp_step: 1
+      preset_modes: ["Auto", "Manual", "Silent", "Turbo"]
+      preset_mode_state_topic: "rackfan/rackfan01/mode/state"
+      preset_mode_command_topic: "rackfan/rackfan01/mode/set"
+      action_topic: "rackfan/rackfan01/action/state"
+      device: &dev
+        identifiers: ["rackfan01"]
+        name: "Smart Rack Fan"
+        manufacturer: "DIY"
+        model: "UNO R4 WiFi"
+
+  fan:
+    - name: "Rack Fan Speed"
+      unique_id: rackfan01_fan
+      state_topic: "rackfan/rackfan01/power/state"
+      command_topic: "rackfan/rackfan01/power/set"
+      percentage_state_topic: "rackfan/rackfan01/pct/state"
+      percentage_command_topic: "rackfan/rackfan01/pct/set"
+      device: *dev
+
+  sensor:
+    - name: "Rack Temp"
+      unique_id: rackfan01_temp
+      state_topic: "rackfan/rackfan01/temp/state"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      device: *dev
+    - name: "Fan RPM"          # PST daisy chain: only the master fan reports RPM
+      unique_id: rackfan01_rpm
+      state_topic: "rackfan/rackfan01/rpm/state"
+      unit_of_measurement: "rpm"
+      device: *dev
+
+  binary_sensor:
+    - name: "Rack Fan Alarm"
+      unique_id: rackfan01_alarm
+      state_topic: "rackfan/rackfan01/alarm/state"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: problem
+      device: *dev
+
+# Optional: push a notification on alarm (replace notify.notify with e.g. notify.mobile_app_xxx)
+automation:
+  - alias: "Rack fan alarm notification"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.rack_fan_alarm
+        to: "on"
+    action:
+      - service: notify.notify
+        data:
+          title: "⚠️ Rack fan alarm"
+          message: "The rack fan raised an alarm (over-temperature / stall / sensor failure). Please check."

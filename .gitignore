@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# CAD viewer preview cache (dotfiles, regenerated from STEP)
+cad/.*.step.glb
+
+# CAD skill virtualenv (if any)
+.venv/
+
+# Editor/IDE cache (Arduino IDE/Theia)
+.theia/
+
+# 3MF (not needed; printing uses STL)
+*.3mf
