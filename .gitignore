@@ -16,3 +16,6 @@ cad/.*.step.glb
 
 # 3MF (not needed; printing uses STL)
 *.3mf
+
+# Promo video projects (HyperFrames; renders + TTS credentials live here)
+videos/
