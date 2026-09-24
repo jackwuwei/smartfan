@@ -163,6 +163,8 @@ flowchart TD
 ```
 
 > **Networking is an add-on**: if WiFi/MQTT/HA goes down, only reporting and remote control are affected — temperature sampling and fan control keep running.
+>
+> **Watchdog**: a ~5.5s hardware watchdog resets the board if the main loop (or the provisioning loop) ever hangs, e.g. the WiFi co-processor stops responding. After a watchdog reset the fans start at 100% and slew down to the curve, so even repeated resets keep the cabinet cooled.
 
 ### 4.1 Control algorithm
 
@@ -185,7 +187,7 @@ flowchart TD
 
 - Sensor unreadable / out of range, or temperature ≥ 60°C → forced 100% + alarm
 - Duty >25% but master fan <60 RPM → stall alarm
-- Power off (turned off from HA) → 0%, fans stop
+- Power off (turned off from HA) → 0%, fans stop. ⚠ Power off overrides the safety rules above: while off, the fans stay stopped even on over-temperature or sensor failure (the alarm is still raised and reported to HA)
 - On alarm the whole OLED screen blinks
 
 ### 4.2 Knob and display
@@ -193,7 +195,7 @@ flowchart TD
 | Action | Effect |
 |---|---|
 | Rotate | Adjust setpoint (±1°C, 25–55); in Manual mode, adjust fan % (±5) |
-| Short press | Cycle the edited item: temperature → fan % → mode |
+| Short press | Cycle the display page: temperature → setpoint → fan % → mode (display only — what rotating adjusts depends on the mode, see above) |
 | Long press (≥0.8s) | Change mode: Auto → Manual → Silent → Turbo |
 | Hold 2s at power-on | Re-run WiFi provisioning |
 
@@ -219,7 +221,7 @@ Temperature control keeps running while the setup portal is open (the OLED just 
 2. Once the device is online, **Smart Rack Fan** appears automatically with: `climate` (thermostat + mode presets), `fan` (on/off + speed), `sensor` (temperature, RPM), `binary_sensor` (alarm).
 3. Add the **HomeKit Bridge** integration and include the `climate` entity → pair it in the Apple Home app by scanning the code, and you can control it with Siri.
 
-MQTT topics are `rackfan/<device ID>/<item>/state` (reports) and `.../<item>/set` (commands). Report-only items: `temp`, `rpm`, `action`, `alarm`; controllable items: `power`, `hvac/mode` (cool/off), `set` (target temperature 25–55), `mode` (Auto/Manual/Silent/Turbo), `pct` (manual %). For debugging, subscribe to `rackfan/rackfan01/#`. If you'd rather not use auto-discovery, configure it manually with `homeassistant/rack_fan.yaml`.
+MQTT topics are `rackfan/<device ID>/<item>/state` (reports) and `.../<item>/set` (commands). Report-only items: `temp`, `rpm`, `action`, `alarm`, plus `rackfan/<device ID>/avail` (`online` / `offline`, retained; `offline` is the broker-published last-will, so HA shows the entities as unavailable when the device drops off); controllable items: `power`, `hvac/mode` (cool/off), `set` (target temperature 25–55), `mode` (Auto/Manual/Silent/Turbo), `pct` (manual %). For debugging, subscribe to `rackfan/rackfan01/#`. If you'd rather not use auto-discovery, configure it manually with `homeassistant/rack_fan.yaml`.
 
 ---
 

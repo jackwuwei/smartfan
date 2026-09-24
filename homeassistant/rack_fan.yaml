@@ -30,6 +30,7 @@ mqtt:
       preset_mode_state_topic: "rackfan/rackfan01/mode/state"
       preset_mode_command_topic: "rackfan/rackfan01/mode/set"
       action_topic: "rackfan/rackfan01/action/state"
+      availability_topic: "rackfan/rackfan01/avail"
       device: &dev
         identifiers: ["rackfan01"]
         name: "Smart Rack Fan"
@@ -43,6 +44,7 @@ mqtt:
       command_topic: "rackfan/rackfan01/power/set"
       percentage_state_topic: "rackfan/rackfan01/pct/state"
       percentage_command_topic: "rackfan/rackfan01/pct/set"
+      availability_topic: "rackfan/rackfan01/avail"
       device: *dev
 
   sensor:
@@ -51,11 +53,13 @@ mqtt:
       state_topic: "rackfan/rackfan01/temp/state"
       unit_of_measurement: "°C"
       device_class: temperature
+      availability_topic: "rackfan/rackfan01/avail"
       device: *dev
     - name: "Fan RPM"          # PST daisy chain: only the master fan reports RPM
       unique_id: rackfan01_rpm
       state_topic: "rackfan/rackfan01/rpm/state"
       unit_of_measurement: "rpm"
+      availability_topic: "rackfan/rackfan01/avail"
       device: *dev
 
   binary_sensor:
@@ -65,6 +69,7 @@ mqtt:
       payload_on: "ON"
       payload_off: "OFF"
       device_class: problem
+      availability_topic: "rackfan/rackfan01/avail"
       device: *dev
 
 # Optional: push a notification on alarm (replace notify.notify with e.g. notify.mobile_app_xxx)
