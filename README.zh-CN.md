@@ -161,6 +161,8 @@ flowchart TD
 ```
 
 > **网络只是附加功能**:WiFi/MQTT/HA 掉线只影响上报和远程控制,温度采样与风扇控制照常运行。
+>
+> **看门狗**:约 5.5s 的硬件看门狗,主循环(或配网循环)一旦卡死(例如 WiFi 协处理器无响应)就复位板子。看门狗复位后风扇先以 100% 起转再逐步降到曲线值,即使反复复位也能保证机柜散热。
 
 ### 4.1 温控算法
 
@@ -183,7 +185,7 @@ flowchart TD
 
 - 传感器读不到 / 超量程,或温度 ≥ 60°C → 强制 100% + 报警
 - 占空比 >25% 但主风扇转速 <60 RPM → 堵转报警
-- 关机(HA 关闭)→ 0%,风扇停转
+- 关机(HA 关闭)→ 0%,风扇停转。⚠ 关机优先于上面的安全规则:关机期间即使过温或传感器故障,风扇也保持停转(报警仍会触发并上报 HA)
 - 报警时 OLED 整屏闪烁
 
 ### 4.2 旋钮与显示
@@ -191,7 +193,7 @@ flowchart TD
 | 操作 | 作用 |
 |---|---|
 | 转 | 调设定温度(±1°C,25–55);Manual 模式下调风扇 %(±5) |
-| 短按 | 切换被调项:温度 → 风扇% → 模式 |
+| 短按 | 切换显示页:温度 → 设定温度 → 风扇% → 模式(仅切换显示;旋转调什么取决于模式,见上) |
 | 长按(≥0.8s) | 切模式:Auto → Manual → Silent → Turbo |
 | 开机按住 2s | 重新配网 |
 
@@ -217,7 +219,7 @@ OLED:顶栏 WiFi 信号 + 模式,中间大号温度,底部主风扇转速 + 占�
 2. 设备上线后自动出现 **Smart Rack Fan**:`climate`(温控器 + 模式预设)、`fan`(开关 + 调速)、`sensor`(温度、转速)、`binary_sensor`(报警)。
 3. 添加 **HomeKit Bridge** 集成,勾选 `climate` 实体 → 用家庭 App 扫码配对,即可用 Siri 控制。
 
-MQTT 主题格式 `rackfan/<设备ID>/<项>/state`(上报)和 `.../<项>/set`(命令)。只上报的项:`temp`、`rpm`、`action`、`alarm`;可控制的项:`power`、`hvac/mode`(cool/off)、`set`(目标温度 25–55)、`mode`(Auto/Manual/Silent/Turbo)、`pct`(手动%)。排查时订阅 `rackfan/rackfan01/#`。不想用自动发现时,可用 `homeassistant/rack_fan.yaml` 手动配置。
+MQTT 主题格式 `rackfan/<设备ID>/<项>/state`(上报)和 `.../<项>/set`(命令)。只上报的项:`temp`、`rpm`、`action`、`alarm`,以及 `rackfan/<设备ID>/avail`(`online` / `offline`,retained;`offline` 是 broker 代发的遗嘱消息,设备掉线时 HA 会把实体显示为不可用);可控制的项:`power`、`hvac/mode`(cool/off)、`set`(目标温度 25–55)、`mode`(Auto/Manual/Silent/Turbo)、`pct`(手动%)。排查时订阅 `rackfan/rackfan01/#`。不想用自动发现时,可用 `homeassistant/rack_fan.yaml` 手动配置。
 
 ---
 

@@ -13,7 +13,7 @@
  * Required libraries (install via Library Manager):
  *   ArduinoMqttClient, ArduinoJson, OneWire, DallasTemperature,
  *   Adafruit GFX Library, Adafruit SSD1306, QRCode (Richard Moore)
- *   (WiFiS3 / Wire / pwm.h (PwmOut) / EEPROM ship with the R4 core)
+ *   (WiFiS3 / Wire / pwm.h (PwmOut) / EEPROM / WDT ship with the R4 core)
  *
  * Fan PWM: a single D9 line -> pin 4 of all 3 fans (4-wire fan PWM is a high-impedance input, so one line can be shared, per the Intel 4-wire spec).
  *   By default PwmOut (R4 core, per-pin hardware PWM) drives D9 (=GTIOC7A/GPT7) at a **true 25kHz (silent)**;
@@ -31,6 +31,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "qrcode.h"                          // provisioning QR code (Library Manager: "QRCode" by Richard Moore)
+#include <WDT.h>                             // hardware watchdog (ships with the R4 core)
 
 // ===================== User config =====================
 // WiFi / MQTT / device ID are not hardcoded: on first boot (or after reset) the provisioning portal starts --
@@ -69,6 +70,11 @@ const uint16_t STALL_RPM = 60;             // below this counts as stalled
 const uint32_t WIFI_BEGIN_WAIT = 2000;     // max ms WiFi.begin() may block the loop (core default 10000)
 const uint32_t WIFI_RETRY_MS   = 15000;    // WiFi re-begin interval (long enough for a join to finish in the background)
 const uint32_t MQTT_RETRY_MS   = 5000;     // MQTT reconnect interval
+const uint32_t MQTT_TCP_WAIT   = 2000;     // max ms for the MQTT TCP connect (WiFiS3 default would wait up to the 10s modem timeout)
+const uint32_t MQTT_ACK_WAIT   = 2000;     // max ms to wait for CONNACK; TCP + CONNACK must stay well under WDT_TIMEOUT_MS
+// Hardware watchdog: resets the MCU if loop() (or the portal loop) stops running, e.g. the WiFi co-processor hangs.
+// RA4M1 max is ~5.59s; every blocking network call above is bounded to <= ~4s and the WDT is refreshed right before it.
+const uint32_t WDT_TIMEOUT_MS  = 5500;
 
 enum Mode : uint8_t { AUTO=0, MANUAL=1, SILENT=2, TURBO=3 };
 const char* MODE_NAME[4] = {"Auto", "Manual", "Silent", "Turbo"};
@@ -296,8 +302,10 @@ void displayStep() {
       int ex = 6 + (v >= 100 ? 3 : v >= 10 ? 2 : 1) * 12;
       drawDeg(ex + 2, 29); oled.setCursor(ex + 6, 27); oled.print("C");
     } else {                                                     // fan %
-      oled.setCursor(6, 27); oled.print(g_duty);
-      int ex = 6 + (g_duty >= 100 ? 3 : g_duty >= 10 ? 2 : 1) * 12;
+      // Manual mode: show the value being dialed in (cfg.manualDuty), not g_duty, which is still slewing toward it at 5%/s
+      int v = (cfg.mode == MANUAL) ? cfg.manualDuty : g_duty;
+      oled.setCursor(6, 27); oled.print(v);
+      int ex = 6 + (v >= 100 ? 3 : v >= 10 ? 2 : 1) * 12;
       oled.setCursor(ex + 2, 27); oled.print("%");
     }
   } else {
@@ -364,6 +372,9 @@ void encoderStep() {
 
 // ===================== MQTT (Home Assistant auto-discovery) =====================
 String baseT() { return String("rackfan/") + netcfg.devid; }   // state/command topic prefix
+// Availability: retained "online" after connect; the broker publishes the retained LWT "offline" when the device drops,
+// so HA greys the entities out instead of showing stale retained values forever.
+String availT() { return baseT() + "/avail"; }
 
 void mqttDiscovery() {
   String b = baseT();
@@ -371,7 +382,7 @@ void mqttDiscovery() {
   dev["ids"][0] = netcfg.devid; dev["name"]="Smart Rack Fan"; dev["mf"]="DIY"; dev["mdl"]="UNO R4 WiFi";
   auto pub = [&](const char* comp, const char* obj, JsonDocument& d){
     String topic = String("homeassistant/")+comp+"/"+netcfg.devid+"/"+obj+"/config";
-    d["dev"]=dev;
+    d["dev"]=dev; d["avty_t"]=availT();   // default payloads "online"/"offline"
     String out; serializeJson(d, out);
     mqtt.beginMessage(topic, true); mqtt.print(out); mqtt.endMessage();   // retained
   };
@@ -430,10 +441,14 @@ void mqttOnMessage(int len) {
 bool mqttConnect() {
   if (WiFi.status()!=WL_CONNECTED) return false;
   mqtt.setId(netcfg.devid);
-  mqtt.setConnectionTimeout(3000);      // default 30s CONNACK wait would stall sampling/control that long
+  wifiClient.setConnectionTimeout(MQTT_TCP_WAIT);   // bound the TCP connect (otherwise up to the 10s modem timeout -> WDT reset)
+  mqtt.setConnectionTimeout(MQTT_ACK_WAIT);         // default 30s CONNACK wait would stall sampling/control that long
   mqtt.setTxPayloadSize(1024);          // default is only 256B, which truncates the larger discovery JSON (climate/fan) -> HA drops the entity
   if (netcfg.user[0]) mqtt.setUsernamePassword(netcfg.user, netcfg.mpass);   // empty = anonymous
+  mqtt.beginWill(availT(), 8, true, 1); mqtt.print("offline"); mqtt.endWill();   // LWT: retained, QoS 1
+  WDT.refresh();                        // worst case below: TCP + CONNACK waits, both bounded above
   if (!mqtt.connect(netcfg.host, netcfg.port)) return false;
+  mqtt.beginMessage(availT(), true); mqtt.print("online"); mqtt.endMessage();
   String b = baseT();
   mqtt.subscribe(b+"/power/set"); mqtt.subscribe(b+"/pct/set");
   mqtt.subscribe(b+"/set/set");   mqtt.subscribe(b+"/mode/set");
@@ -583,13 +598,16 @@ void runPortal() {
   oled.clearDisplay(); oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
   oled.setCursor(0, 28); oled.print("Scanning WiFi..."); oled.display();
   scanNets();                                  // scan first (STA mode) -> list goes into the portal page
+  WDT.begin(WDT_TIMEOUT_MS);                   // started after the scan: a slow scan (can take several s) must not trip it
   WiFi.beginAP(AP_SSID, AP_PASS);              // then start the AP
   delay(1000);
+  WDT.refresh();
   portal.begin();
   dnsUdp.begin(53);                            // captive DNS: hijack all domains -> portal auto-opens
   portalDrawQR();
   uint32_t tCtl = millis();
   for (;;) {
+    WDT.refresh();
     if (millis() - tCtl >= 1000) { tCtl = millis(); sampleStep(); controlStep(); }
     dnsHandle();                               // handle DNS probes first, to trigger the auto-popup
     WiFiClient c = portal.available();
@@ -614,6 +632,7 @@ void runPortal() {
       c.flush(); delay(300); c.stop();
       oled.clearDisplay(); oled.setTextColor(SSD1306_WHITE); oled.setTextSize(2);
       oled.setCursor(0,24); oled.print("SAVED"); oled.display(); delay(900);
+      WDT.refresh();
       NVIC_SystemReset();
     } else {
       c.print("HTTP/1.1 200 OK\r\nContent-Type:text/html;charset=utf-8\r\nConnection:close\r\n\r\n");
@@ -632,6 +651,9 @@ void setup() {
   pinMode(TACH_PIN, INPUT_PULLUP);          // single PST TACH, internal pull-up (no external resistor)
 
   pwmBegin();
+  // Came back from a watchdog reset? Then start from 100% and slew down to the curve, so that even a repeated
+  // WDT reset loop keeps the cabinet cooled (loud, but safe) instead of re-ramping from 0% every time.
+  if (R_SYSTEM->RSTSR1_b.WDTRF) { R_SYSTEM->RSTSR1 = 0; g_duty = 100; pwmSet(g_duty); }
   Wire.begin();
   oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
   oled.clearDisplay(); oled.display();
@@ -654,6 +676,7 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(ENC_A), encISR, FALLING);    // encoder CLK (D3 supports interrupts)
 
+  WDT.begin(WDT_TIMEOUT_MS);                // from here on loop() must keep running; see WDT_TIMEOUT_MS
   WiFi.setHostname(netcfg.devid);           // hostname shown in router/DHCP = device ID (default rackfan01), instead of esp32s3-xxxx
   WiFi.setTimeout(WIFI_BEGIN_WAIT);         // WiFi.begin() blocks until connected or this timeout; keep it short --
   WiFi.begin(netcfg.ssid, netcfg.pass);     // the bridge keeps joining in the background and loop() polls the status
@@ -662,6 +685,7 @@ void setup() {
 }
 
 void loop() {
+  WDT.refresh();
   uint32_t now = millis();
 
   encoderStep();                         // encoder (handled every iteration for responsiveness)
@@ -688,6 +712,7 @@ void loop() {
   bool wifiUp = (WiFi.status() == WL_CONNECTED);
   if ((!wifiUp || !mqtt.connected()) && now - tReconnect >= (wifiUp ? MQTT_RETRY_MS : WIFI_RETRY_MS)) {
     tReconnect = now;
+    WDT.refresh();                            // WiFi.begin / mqttConnect below block for up to ~2s / ~4s
     if (!wifiUp) {
       WiFi.setHostname(netcfg.devid);        // keep the custom hostname on reconnect too
       WiFi.begin(netcfg.ssid, netcfg.pass);  // WiFi dropped -> reconnect; rejoins automatically once the network is back (temperature control unaffected throughout)
